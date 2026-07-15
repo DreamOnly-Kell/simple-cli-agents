@@ -47,3 +47,7 @@ out/
 .vscode/
 *.swp
 *~
+
+# Local agent skills (npx skills / Grok agents) — not part of the monorepo product
+.agents/
+skills-lock.json
