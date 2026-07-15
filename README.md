@@ -1,87 +1,192 @@
 # simple-cli-agents
 
-极简终端 Code Agent 学习 monorepo：同一「根能力」切片，两套框架实现对照。
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-> **根能力一句话**  
-> 人 ↔ 模型 ↔ tool call ↔ 工具结果回灌 ↔ 再决策 ↔ 本轮结束交还人。  
-> 完整产品还需要能力扩展、安全边界、工程可靠性与产品体验——体验只是其中一块。
+Minimal **terminal code-agent** demos for learning **LLM agent + tool use** — the same “core loop” implemented twice:
 
-## 子项目
+| Subproject | Stack |
+|------------|--------|
+| [`python-langchain/`](./python-langchain/) | Python + LangChain |
+| [`java-spring-ai/`](./java-spring-ai/) | Java + Spring AI |
 
-| 目录 | 技术栈 | 启动 |
-|------|--------|------|
-| [`python-langchain/`](./python-langchain/) | Python + LangChain | 见该目录 `START.md` |
-| [`java-spring-ai/`](./java-spring-ai/) | Java + Spring AI | 见该目录 `START.md` |
+> **Chinese documentation:** [README_CN.md](./README_CN.md)
+
+---
+
+## What this is (and is not)
+
+**One-line core idea**
+
+```text
+user ↔ model ↔ tool_calls ↔ run tools ↔ feed results back ↔ decide again
+     → turn ends → wait for next user input
+```
+
+This monorepo ships the **smallest runnable “engine”** of a coding agent — not a Claude Code / Codex-class product.
+
+| Layer | Role |
+|-------|------|
+| **This repo** | Agent loop + native tool calling + file read/write + observability |
+| **Product agents** | That engine **plus** tool surface, context ops, permissions/sandbox, reliability, UX |
+
+Later features (search, shell, OS sandbox, memory products, polish) are **capability, safety, and product** — not “UX only.”
+
+---
+
+## Core ideas
+
+1. **Root capability first** — Learn the real turn cycle before stacking product features.  
+2. **Framework wrappers first** — Use LangChain / Spring AI tool-calling agents; don’t hand-roll a runtime in v1.  
+3. **Thin scope** — Multi-turn chat, two file tools, turn-based handoff, observability.  
+4. **OpenAI-compatible only** — Point `base_url` at any compatible endpoint (OpenAI, gateways, local servers).  
+5. **Twin implementations** — Same behavior slice, different frameworks, easy to compare.  
+6. **Path jail, not OS sandbox** — Workspace root checks only; not containers / Seatbelt / bubblewrap.  
+
+Shared decision constraints: [`docs/PROJECT_DNA.md`](./docs/PROJECT_DNA.md).
+
+---
+
+## How it works
+
+### Agent loop (both stacks)
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  CLI REPL                                                │
+│  read line → one agent/ChatClient call → print → wait    │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────┐
+│  Framework tool-calling loop (may multi-hop in one turn) │
+│  1. Send messages + tools schema                         │
+│  2. LLM may return tool_calls                            │
+│  3. Runtime executes tools locally                       │
+│  4. Append tool results → call LLM again                 │
+│  5. Stop when no more tool_calls → return final text     │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+              ┌─────────────┴─────────────┐
+              ▼                           ▼
+     File tools (sandbox)        Observability
+     read / write                logic trace + HTTP JSONL
+```
+
+### Tools on the wire (not in `content`)
+
+OpenAI-compatible requests expose tools as a **top-level `tools` array** (function schemas). The model’s intent appears as **`tool_calls`**; results return as **`role: tool`** messages. Tool definitions are not stuffed into free-form `content` text.
+
+### File tools
+
+- Resolve paths under a workspace root; reject escapes (`../`, absolute paths outside root).  
+- UTF-8 read (optional truncate); write = full-file overwrite.  
+- Errors return strings like `Error: ...` so the model can recover.
+
+### Multi-turn
+
+- In-process memory only (lost on process exit).  
+- Python: checkpointer + `thread_id`.  
+- Java: `ChatMemory` + `conversationId`.
+
+### Observability (learning-oriented)
+
+| Channel | Purpose |
+|---------|---------|
+| **Logic trace** | Turns, tool names/args/results (console / Logback) |
+| **HTTP JSONL** | Near-raw `chat/completions` exchanges (redacted secrets) under `logs/` |
+
+---
+
+## Repository layout
 
 ```text
 simple-cli-agents/
-├── README.md                 # 本文件
-├── docs/                     # 全部设计/计划/DNA 文档
-│   ├── PROJECT_DNA.md        # 共享决策约束
-│   ├── python-langchain/
-│   └── java-spring-ai/
-├── .gitignore
-├── session.txt               # 本地会话续聊 id（gitignore）
-├── python-langchain/         # Python 实现
-└── java-spring-ai/           # Java 实现
+├── README.md / README_CN.md
+├── LICENSE
+├── docs/                      # design, plans, DNA (not app code)
+├── python-langchain/          # run commands here
+└── java-spring-ai/            # run commands here
 ```
 
-## 已实现能力对照
+Always **`cd` into a subproject** before run/build so workspace and config paths stay correct.
 
-两边验收线相同：**多轮对话 · 会调 tool · 本轮结束后等人 · 行为可观测**。
+---
 
-| 功能 | Python (`python-langchain`) | Java (`java-spring-ai`) |
-|------|----------------------------|-------------------------|
-| 终端 REPL 多轮对话 | ✅ `cli.py` + 进程内 memory | ✅ `ReplRunner` + `ChatMemory` |
-| 本轮结束交还用户 | ✅ agent `invoke` 返回后再 `input` | ✅ `ChatClient.call()` 返回后再读 stdin |
-| 读文件 tool | ✅ `read_file` | ✅ `readFile`（`@Tool`） |
-| 写文件 tool（整文件覆盖） | ✅ `write_file` | ✅ `writeFile` |
-| 工作区路径门禁（应用层沙箱） | ✅ `FileWorkspace` | ✅ `FileWorkspace` |
-| OpenAI **兼容** Chat Completions | ✅ `ChatOpenAI` + base_url | ✅ Spring AI OpenAI starter |
-| 系统提示（code 助手 + 工具说明） | ✅ `SYSTEM_PROMPT` | ✅ `AiConfig.SYSTEM_PROMPT` |
-| 逻辑层轨迹（tool / 轮次） | ✅ console Callback | ✅ Logback `cli.trace` |
-| HTTP wire 日志（JSONL，脱敏） | ✅ httpx hooks → `logs/http-session-*.jsonl` | ✅ RestClient 拦截器 → 同结构 jsonl |
-| 配置 | ✅ `.env` + CLI 参数 | ✅ `application.yml` / `application-local.yml`（**不读 .env**） |
-| 单测（不依赖真 LLM） | ✅ 沙箱 / 配置 / JSONL 脱敏 | ✅ 沙箱 / JSONL / 配置校验 |
-| 启动文档 | ✅ README / START | ✅ README / START |
-| 共享 DNA / 总览 | 父目录 `docs/PROJECT_DNA.md`、`README.md` | 同左 |
+## Feature matrix
 
-**刻意未做（两边一致）**：Shell / 搜索 / git / 补丁编辑、OS 级沙箱、流式优先、持久会话产品、子 agent、MCP、对齐 Claude Code / Codex 完整度。
+Same acceptance line: **multi-turn · tool use · wait for user · observable**.
 
-## 最短启动
+| Feature | Python | Java |
+|---------|--------|------|
+| Terminal multi-turn REPL | `cli.py` + memory | `ReplRunner` + `ChatMemory` |
+| End-of-turn returns control | after `invoke` | after `ChatClient.call()` |
+| Read file tool | `read_file` | `readFile` (`@Tool`) |
+| Write file tool (overwrite) | `write_file` | `writeFile` |
+| Workspace path jail | `FileWorkspace` | `FileWorkspace` |
+| OpenAI-compatible Chat Completions | `ChatOpenAI` | Spring AI OpenAI starter |
+| System prompt | `SYSTEM_PROMPT` | `AiConfig.SYSTEM_PROMPT` |
+| Logic trace | console callbacks | Logback `cli.trace` |
+| HTTP JSONL (redacted) | httpx hooks | RestClient interceptor |
+| Config | `.env` + CLI | `application.yml` / `application-local.yml` (**no `.env` file**) |
+| Unit tests (no live LLM) | pytest | JUnit 5 |
 
-**Python**
+**Out of scope (both):** shell, search, git, patch edits, OS sandbox, streaming-first UX, durable product memory, multi-agent, MCP, Claude Code / Codex feature parity.
+
+---
+
+## Framework mapping
+
+| Concept | Python | Java |
+|---------|--------|------|
+| Model | `ChatOpenAI` | Spring AI OpenAI + `ChatClient` |
+| Agent loop | `create_agent` | `ChatClient` + tool calling |
+| Tool API | `StructuredTool` | `@Tool` |
+| Multi-turn | `MemorySaver` | `ChatMemory` |
+| Config | `.env` | Spring config files |
+| Observability | console + JSONL | Logback + JSONL |
+
+---
+
+## Quick start
+
+### Python
 
 ```bash
 cd python-langchain
-uv sync --python 3.14 --extra dev
-# 配置 .env 后
+uv sync --extra dev
+cp -n .env.example .env   # set OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
 uv run python -m simple_cli_agent
 ```
 
-**Java**
+Details: [`python-langchain/START.md`](./python-langchain/START.md)
+
+### Java
 
 ```bash
 cd java-spring-ai
-# 配置 application-local.yml 后
+# Copy application-local.yml.example → application-local.yml and set:
+#   spring.ai.openai.api-key / base-url (no trailing /v1) / model
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-请在**各自子目录**内执行构建/运行（不要在父目录直接跑，避免工作区路径指错）。
+Details: [`java-spring-ai/START.md`](./java-spring-ai/START.md)
 
-## 实现映射（框架 API）
+> **base-url:** Spring AI calls `{base-url}/v1/chat/completions`. Use host root (e.g. `https://api.openai.com`), not `.../v1`. Do not swap `api-key` and `base-url`.
 
-| 概念 | Python | Java |
-|------|--------|------|
-| 模型 | `ChatOpenAI` | Spring AI OpenAI + `ChatClient` |
-| Agent 循环 | `create_agent` | `ChatClient` + tool calling |
-| Tool | `StructuredTool` | `@Tool` |
-| 多轮 | `MemorySaver` | `ChatMemory` |
-| 配置 | `.env` | `application.yml` / `application-local.yml` |
-| 可观测 | console + HTTP jsonl | Logback + HTTP jsonl |
+---
 
-## 文档
+## Documentation
 
-- 共享：[`docs/PROJECT_DNA.md`](./docs/PROJECT_DNA.md)
-- Python：`python-langchain/README.md`、`START.md`；计划/交接见 [`docs/python-langchain/`](./docs/python-langchain/)
-- Java：`java-spring-ai/README.md`、`START.md`；实现计划见 [`docs/java-spring-ai/`](./docs/java-spring-ai/)
+| Doc | Description |
+|-----|-------------|
+| [README_CN.md](./README_CN.md) | Chinese version of this README |
+| [docs/PROJECT_DNA.md](./docs/PROJECT_DNA.md) | Shared decision constraints |
+| [docs/python-langchain/](./docs/python-langchain/) | Python handoff, plan, design |
+| [docs/java-spring-ai/](./docs/java-spring-ai/) | Java DNA + implementation plan |
+| Subproject `README.md` / `START.md` | Stack-specific setup |
+
+---
+
+## License
+
+[MIT](./LICENSE)
