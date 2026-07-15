@@ -164,7 +164,7 @@ Details: [`python-langchain/START.md`](./python-langchain/START.md)
 
 ```bash
 cd java-spring-ai
-# Copy application-local.yml.example → application-local.yml and set:
+# Create application-local.yml (gitignored) or edit application.yml; set:
 #   spring.ai.openai.api-key / base-url (no trailing /v1) / model
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```

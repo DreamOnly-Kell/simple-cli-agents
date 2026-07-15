@@ -11,13 +11,14 @@ class ConnectionDiagnosticsTest {
     @Test
     void acceptsNormalPair() {
         assertDoesNotThrow(() ->
-                ConnectionDiagnostics.validate("https://api.openai.com", "sk-abc12345"));
+                ConnectionDiagnostics.validate("https://api.openai.com", "tp-test-not-a-real-key-000"));
     }
 
     @Test
     void rejectsBaseUrlThatLooksLikeKey() {
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
-                ConnectionDiagnostics.validate("tp-cf2h39cjsgf6smrwpy84", "https://api.openai.com"));
+                // synthetic "looks like key, not URL" — must not be a real secret
+                ConnectionDiagnostics.validate("tp-test-not-a-real-key-000", "https://api.openai.com"));
         assertTrue(ex.getMessage().toLowerCase().contains("base-url")
                 || ex.getMessage().toLowerCase().contains("swapped"));
     }

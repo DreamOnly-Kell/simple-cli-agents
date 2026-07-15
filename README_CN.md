@@ -165,7 +165,7 @@ uv run python -m simple_cli_agent
 
 ```bash
 cd java-spring-ai
-# 复制 application-local.yml.example → application-local.yml
+# 自行创建 application-local.yml（gitignore）或改 application.yml
 # 填写 api-key、base-url（不要带 /v1）、model
 mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```

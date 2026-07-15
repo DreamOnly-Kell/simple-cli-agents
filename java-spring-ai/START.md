@@ -18,13 +18,7 @@ mvn -version
 | `spring.ai.openai.api-key` | 密钥字符串 | `sk-...` / `tp-...` |
 | `spring.ai.openai.base-url` | **必须** `http(s)://` 的 URL，且**不要**带 `/v1` | `https://token-plan-cn.xiaomimimo.com` |
 
-推荐用 local profile：
-
-```bash
-cp src/main/resources/application-local.yml.example \
-   src/main/resources/application-local.yml
-# 编辑 application-local.yml
-```
+推荐创建 gitignored 的 `application-local.yml`（或直接改 `application.yml`），内容示例：
 
 ```yaml
 spring:
@@ -36,6 +30,8 @@ spring:
         options:
           model: mimo-v2.5
 ```
+
+将文件放到 `src/main/resources/application-local.yml`，然后用 local profile 启动。
 
 ## 启动
 
