@@ -2,7 +2,9 @@
 
 > 父 monorepo：[`simple-cli-agents`](../) · 姊妹实现：[`java-spring-ai`](../java-spring-ai/)
 
-极简 **LangChain 终端 code agent**（学习用）：OpenAI 兼容接口 + 读/写文件 tool + 多轮对话 + 双通道可观测性。
+极简 **LangChain 终端 code agent**（学习用）：OpenAI 兼容接口 + 文件/终端 tools + 多轮对话 + 双通道可观测性。
+
+> **功能收口：** 当前工具面见 [`docs/PROJECT_DNA.md`](../docs/PROJECT_DNA.md)（read/write/edit/ls/grep/run_command）。历史 design/plan 以 DNA 为准。
 
 ## 定位（读这个就够）
 
@@ -42,7 +44,7 @@ uv python list          # 应能看到 cpython-3.14.6 ...
 ### 1. 同步环境并安装依赖（首次 / 依赖变更后）
 
 ```bash
-cd /path/to/Simple-CLI-Agent
+cd /path/to/simple-cli-agents/python-langchain
 
 # 指定 Python 3.14，安装项目 + 开发依赖（pytest）
 uv sync --python 3.14 --extra dev
@@ -67,7 +69,11 @@ cp -n .env.example .env
 | `OPENAI_API_KEY` | API 密钥（本地可填 `EMPTY`） | `sk-...` |
 | `OPENAI_BASE_URL` | OpenAI **兼容**接口根地址 | `https://api.openai.com/v1` |
 | `OPENAI_MODEL` | 模型名 | `gpt-4o-mini` |
-| `WORKSPACE_ROOT` | 文件读写沙箱 | `.` |
+| `WORKSPACE_ROOT` | 文件/ls/grep/edit 沙箱根；`run_command` 的 cwd | `.` |
+| `SHELL_BLOCKED_PATTERNS` | 高危命令子串，用 `||` 分隔；`none` 关闭拦截 | 见 `.env.example` |
+| `SHELL_TIMEOUT_SECONDS` | `run_command` 超时秒数 | `30` |
+| `VERBOSE` / `VERBOSE_FULL` | 控制台逻辑轨迹 | `1` / `0` |
+| `HTTP_LOG` / `HTTP_LOG_DIR` | HTTP JSONL 开关与目录 | `1` / `logs` |
 
 本地兼容服务示例（LM Studio / Ollama OpenAI 端点）：
 
@@ -111,8 +117,11 @@ you>
 示例对话：
 
 ```text
+you> 用 ls 看一下当前目录
+you> grep 一下 edit_file 在哪
 you> 读一下 README.md 的前几行并总结
-you> 在 playground/hello.txt 里写一句 Hello
+you> 用 edit_file 把 playground/hello.txt 里的 Hello 改成 Hi
+you> 跑一下 pwd 和 ls
 ```
 
 退出：`exit` / `quit` / `Ctrl-C`。本轮结束后会再次出现 `you>`。
@@ -141,9 +150,10 @@ uv run pytest -v
 |------|------|
 | `uv: command not found` | `export PATH="$HOME/.local/bin:$PATH"`，并写入 shell 配置 |
 | `OPENAI_API_KEY is required` | 配 `.env` 或 `--api-key`；本地可用 `EMPTY` |
-| `No module named simple_cli_agent` | 在项目根执行 `uv sync --extra dev`，再用 `uv run ...` |
+| `No module named simple_cli_agent` | 在子项目根执行 `uv sync --extra dev`，再用 `uv run ...` |
 | 用了系统 Python 3.9 | 务必 `uv sync --python 3.14` 或 `uv python pin 3.14` |
 | 连不上 API | 检查 `OPENAI_BASE_URL` 是否含 `/v1`、本地服务是否启动 |
+| `run_command` 被拦 | 对照 `SHELL_BLOCKED_PATTERNS` / 默认高危列表；学习用可改配置，**不建议** `none` |
 
 ### 可选：传统 venv + pip（不推荐优先）
 
@@ -156,19 +166,31 @@ python -m simple_cli_agent
 
 ---
 
-## 功能（v1 · 已实现的「根」）
+## 功能（已实现）
 
 - 终端 REPL，多轮上下文（进程内 `MemorySaver`，退出即丢）
-- Tools：`read_file` / `write_file`（`WORKSPACE_ROOT` 下**应用层路径门禁**，非整机 OS 沙箱）
 - 本轮 agent 结束后等待下一次输入（turn-based）
+- **Tools**（`WORKSPACE_ROOT` 下应用层路径门禁；非整机 OS 沙箱）：
+
+| Tool | 说明 |
+|------|------|
+| `read_file` | 读文本；超大文件软截断 |
+| `write_file` | 整文件覆盖写 |
+| `edit_file` | 唯一匹配局部替换（0/多次匹配 → 不改文件） |
+| `ls` | 非递归列目录；目录名带 `/` |
+| `grep` | 应用层子串搜索；跳过 `.venv`/`target`/…；有命中上限 |
+| `run_command` | cwd=工作区根；`CommandGuard` 子串拦截高危命令；超时与输出截断 |
+
 - **Console**：逻辑层 LLM 请求/响应与 tool 轨迹（默认开）
 - **HTTP 日志**：尽量还原 `chat/completions` 原始请求/响应 JSONL（默认开，密钥脱敏）
 
-对应可验收点：多轮对话、会调 tool、本轮结束交还用户、能对照 HTTP 里的 `tools` / `tool_calls`。
+可验收：多轮、会调 tool、本轮结束交还用户、能在 HTTP 里对照 `tools` / `tool_calls`。
+
+---
 
 ## 与 Claude Code / Codex 等的差距（尚未实现）
 
-下面不是「本仓库的 bug 列表」，而是**相对完整 coding agent 产品，根能力之外通常还缺什么**。其中一部分是体验，更多是**能不能干活、安不安全、稳不稳**。
+下面不是「本仓库的 bug 列表」，而是**相对完整 coding agent 产品，根能力之外通常还缺什么**。
 
 ### 1. 上下文管理（Context）
 
@@ -176,7 +198,7 @@ python -m simple_cli_agent
 |--------|----------------|
 | 历史几乎整包进 messages | 压缩、摘要、按相关性取舍、token 预算 |
 | 窗口靠模型/接口上限硬顶 | 主动 compact，避免长会话崩掉 |
-| 靠模型自己 `read_file` | 规则化注入：打开文件、diff、诊断、@ 引用、索引检索 |
+| 靠模型自己 `read_file` / `grep` | 规则化注入：打开文件、diff、诊断、@ 引用、索引检索 |
 | 固定一段 system prompt | 分层：全局说明 + 项目规则 + 动态状态 |
 
 ### 2. Memory（记忆）
@@ -191,20 +213,20 @@ python -m simple_cli_agent
 
 | 本仓库 | 产品级常见能力 |
 |--------|----------------|
-| 路径 `resolve` + 工作区限制 | 按工具/路径/命令/域名的策略与确认流 |
-| 无 shell | Shell 常配合 OS 沙箱（如 Seatbelt / bubblewrap） |
+| 文件 tool：路径 `resolve` + 工作区限制 | 按工具/路径/命令/域名的策略与确认流 |
+| shell：可配置子串拦截 + 超时（**非** OS 沙箱） | Shell 常配合 OS 沙箱（Seatbelt / bubblewrap / 容器） |
 | 一种运行模式 | 只读 / 工作区可写 / 高危全开等档位 |
 | 学习用门禁 | 审计、策略下发、防 prompt injection 等（深浅不一） |
 
-> 说明：本仓库的「沙箱」是**应用层路径门禁**，不是 Windows Sandbox / 容器那种独立执行环境。
+> 说明：本仓库的「沙箱」对**文件工具**是应用层路径门禁；对 **shell** 只挡高危子串，命令仍可触达 cwd 外路径。不是 Windows Sandbox / 容器那种独立执行环境。
 
-### 4. 工具面（Tool surface）——产品差距里最大的一块
+### 4. 工具面（Tool surface）——产品差距里仍很大的一块
 
-本仓库仅 **读/写整文件**。产品级通常还有例如：
+本仓库已有：读 / 写 / 唯一匹配编辑 / ls / 应用层 grep / 带策略 shell。产品级通常还有例如：
 
-- 终端/脚本执行（cwd、超时、输出截断）
-- 代码/文件搜索（语义或正则）
-- **补丁式编辑**（diff/patch，而非整文件覆盖）
+- 更严 shell（确认流、网络/路径白名单、OS 隔离）
+- 语义/正则代码索引、大仓性能
+- **真·补丁式编辑**（unified diff / 多 hunk，而非唯一子串或整文件覆盖）
 - Git、测试/构建诊断、LSP
 - Web/文档、MCP/插件扩展工具
 - 计划、待办、子 agent 派发（视产品而定）
@@ -245,11 +267,11 @@ python -m simple_cli_agent
 ├─────────────────────────────────────────────────────────┤
 │  工程可靠 / 安全：OS 沙箱、确认策略、熔断、审计…          │  ← 稳不稳、安不安全
 ├─────────────────────────────────────────────────────────┤
-│  能力扩展：shell / 搜索 / patch / git / 测试 / MCP…      │  ← 能不能干活
+│  能力扩展：索引 / 真 patch / git / 测试 / MCP…           │  ← 能不能干活
 ├─────────────────────────────────────────────────────────┤
 │  上下文运营与 Memory：压缩、检索、跨会话记忆…             │  ← 长会话与「记住」
 ├─────────────────────────────────────────────────────────┤
-│  ★ 本仓库：agent 循环 + tool use + 读写作 + 可观测       │  ← 根（发动机）
+│  ★ 本仓库：agent 循环 + tool use + 文件/终端工具 + 可观测 │  ← 根（发动机）
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -257,10 +279,10 @@ python -m simple_cli_agent
 
 不必对齐 Claude Code；若继续练手，性价比通常较高的是：
 
-1. 搜索 + 极简 shell  
-2. 非覆盖式编辑（或「先读后写」约束）  
-3. 危险操作确认  
-4. 简单上下文压缩 / 会话落盘  
+1. 更严 shell 确认 / 输出策略  
+2. 真·补丁编辑或多文件事务  
+3. 简单上下文压缩 / 会话落盘  
+4. 测试闭环（改完自动跑 pytest 再改）  
 
 再往后才是子 agent、MCP、OS 沙箱等。
 
@@ -271,25 +293,31 @@ python -m simple_cli_agent
 | `--base-url` | OpenAI 兼容 API 根 URL |
 | `--model` | 模型名 |
 | `--api-key` | API 密钥 |
-| `--workspace` | 文件工具沙箱根目录 |
+| `--workspace` | 文件工具沙箱根（亦为 shell cwd） |
 | `--quiet` | 关闭 console 轨迹 |
 | `--verbose-full` | console 不截断长文本 |
 | `--no-http-log` | 关闭 HTTP jsonl |
 | `--http-log-dir` | HTTP 日志目录（默认 `logs`） |
 
+> shell 拦截列表 / 超时目前通过环境变量配置（见上表），无 CLI 开关。
+
 ## 项目结构（入口在哪）
 
 ```text
-Simple-CLI-Agent/                 ← 在这里执行命令
-├── README.md                     ← 本说明
-├── pyproject.toml
+python-langchain/                 ← 在这里执行命令
+├── README.md / START.md
+├── pyproject.toml / uv.lock
 ├── .env.example                  ← 复制为 .env
 ├── simple_cli_agent/             ← 主程序包
 │   ├── __main__.py               ← python -m simple_cli_agent 入口
 │   ├── cli.py                    ← REPL 主循环
-│   ├── agent.py / model.py / ...
-│   └── tools/files.py
-├── tests/
+│   ├── agent.py                  ← create_agent + SYSTEM_PROMPT
+│   ├── config.py / model.py / ...
+│   └── tools/
+│       ├── files.py              ← FileWorkspace + read/write/edit/grep
+│       ├── shell.py              ← CommandGuard + ShellRunner
+│       └── agent_tools.py        ← 组装全部 tools（含 ls / run_command）
+├── tests/                        ← pytest（含 edit/grep/shell/ls）
 └── logs/                         ← 运行后生成 HTTP 日志（gitignore）
 ```
 
@@ -299,15 +327,19 @@ Simple-CLI-Agent/                 ← 在这里执行命令
 - [`HANDOFF.md`](../docs/python-langchain/HANDOFF.md) — 意图交接
 - [Design spec](../docs/python-langchain/superpowers/specs/2026-07-12-simple-cli-agent-design.md) — 设计说明
 - 共享 DNA：[`docs/PROJECT_DNA.md`](../docs/PROJECT_DNA.md)
+- 父仓功能矩阵：[`../README_CN.md`](../README_CN.md)
 
 ## 范围外（v1 刻意不做）
 
-与上一节「差距」一致，下列默认**不在本仓库目标内**（学习路径中途需要时可另起分支）：
+下列默认**不在本仓库目标内**（与「差距」节一致）：
 
-- Shell / 搜索 / git / 测试运行器 / MCP  
-- 补丁式编辑、流式输出、持久会话与产品级 Memory  
+- 无 OS 沙箱的「任意 shell」、无策略拦截的生产级执行环境  
+- 语义/正则代码索引、git / 测试运行器 / MCP  
+- 真·补丁式编辑、流式输出、持久会话与产品级 Memory  
 - OS 级沙箱、完整权限产品、子 agent  
 - Anthropic 原生协议、OpenAI Responses 专用路径  
 - 对齐 Claude Code / Codex 的完整体验与工程厚度  
+
+> **已在范围内：** 应用层 `grep`、策略拦截的 `run_command`、`edit_file` / `ls`。
 
 设计依据见 [`PROJECT_DNA.md`](../docs/python-langchain/PROJECT_DNA.md)、[`HANDOFF.md`](../docs/python-langchain/HANDOFF.md)。

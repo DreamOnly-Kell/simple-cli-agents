@@ -46,7 +46,7 @@ public class LogicalTrace {
     }
 
     /**
-     * 模型最终自然语言回复（本轮 invoke 结束）。
+     * 模型最终自然语言回复（本轮 {@code ChatClient.call()} 返回后）。
      */
     public void assistantMessage(String text) {
         if (!props.isVerbose()) {

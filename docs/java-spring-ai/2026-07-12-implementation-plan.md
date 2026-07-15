@@ -1,6 +1,8 @@
 # java-spring-ai · 实现规划
 
-> **状态**：v1 **已实现**（Maven 构建）  
+> **状态**：历史实现规划；**v1 根能力已实现**。  
+> **现行能力边界**：[`PROJECT_DNA.md`](./PROJECT_DNA.md) + 共享 [`../PROJECT_DNA.md`](../PROJECT_DNA.md) + 代码。  
+> **Post-v1 已落地（以 DNA/代码为准）**：`edit_file` / `ls` / `grep` / 策略拦截 `run_command`。  
 > **代码目录**：[`../../java-spring-ai/`](../../java-spring-ai/)  
 > **姊妹代码**：[`../../python-langchain/`](../../python-langchain/)  
 > **目标**：用 **Spring AI 1.1.x + Boot 3.5** 复刻 Python 版「根能力」学习 demo  
@@ -10,10 +12,10 @@
 
 ## 1. 目标与非目标
 
-### 1.1 目标（v1 Done）
+### 1.1 目标（v1 Done · 根引擎）
 
 1. 终端多轮对话（进程内历史）  
-2. Tool use：`readFile` / `writeFile`（工作区路径门禁）  
+2. Tool use：`readFile` / `writeFile`（工作区路径门禁）——v1 最小集；完整列表见 DNA-04  
 3. 本轮结束后 CLI **等待**下一句用户输入  
 4. **可观测双开**：  
    - Logback：逻辑层 tool / 轮次轨迹  
@@ -26,13 +28,15 @@
 - **仅 OpenAI 兼容** Chat Completions（`base-url` + `api-key` + `model`）  
 - 无 Web：`spring.main.web-application-type=none`  
 
-### 1.2 非目标
+### 1.2 非目标（相对产品级 agent 仍推迟）
 
 - 对齐 Claude Code / Codex  
 - Anthropic 原生、多 Provider、子 agent、MCP  
-- Shell / 搜索 / git / patch  
+- 无策略裸 shell、OS 沙箱、语义索引、git 专用工具、真·补丁编辑  
 - 读取 `.env` 文件（配置只走 Spring：`application.yml` / `application-local.yml`）  
 - Gradle 构建  
+
+> 应用层 `grep` 与**策略拦截**的 `run_command` **已在当前 monorepo 范围内**（见 DNA-04）。
 
 ---
 
@@ -44,7 +48,8 @@
 | 配置 | `.env` | `application.yml` + `application-local.yml`（profile=local） |
 | 模型 | `ChatOpenAI` | Spring AI OpenAI starter |
 | Agent | `create_agent` | `ChatClient` + tools + tool-calling 循环 |
-| 读/写文件 | `FileWorkspace` + StructuredTool | `FileWorkspace` + `@Tool` |
+| 文件 tools | `FileWorkspace` + StructuredTool（read/write/edit/grep） | 同左 + `@Tool` |
+| 浏览 / shell | `ls` + `run_command`（CommandGuard） | 同左 |
 | 多轮 | MemorySaver + thread_id | ChatMemory + conversationId |
 | 逻辑轨迹 | Callback / console | Logback `cli.trace` |
 | HTTP 日志 | httpx hooks → jsonl | RestClient 拦截器 → jsonl |
@@ -171,7 +176,8 @@ simple-cli-agents/
 
 ---
 
-## 10. 下一步（可选）
+## 10. 下一步（可选 · 学习向）
 
 - 本地配置 `application-local.yml` 跑通自检剧本  
-- 与 Python 子项目并排对照 `logs/http-session-*.jsonl`  
+- 与 Python 子项目并排对照 `logs/http-session-*.jsonl`（同一任务看 `tools` / `tool_calls`）  
+- 现行工具面与边界以 [`PROJECT_DNA.md`](./PROJECT_DNA.md) / 共享 DNA 为准（含 edit/ls/grep/run_command）  

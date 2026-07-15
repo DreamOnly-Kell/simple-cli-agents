@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
  * 真实磁盘逻辑仍委托 {@link FileWorkspace}。
  *
  * <p>方法名/描述会进入请求体顶层 {@code tools} schema，不是塞进 content。
+ * <p>每个方法在执行前后打 {@link LogicalTrace}，对齐 Python 控制台 {@code >>> tool} 轨迹。
  */
 @Component
 public class FileTools {
@@ -26,13 +27,17 @@ public class FileTools {
 
     /**
      * Spring 注入：从配置构造沙箱根。
+     *
+     * <p>{@link TerminalTools} 会通过 {@link #getWorkspace()} 复用同一 workspace，
+     * 保证文件 tool 与 shell cwd 指向同一根目录。
      */
     public FileTools(AppProperties appProperties, LogicalTrace trace) {
-        // 每个会话共用一个沙箱根（来自 app.workspace-root）
+        // 全进程共用一个 workspace；TerminalTools 通过 getWorkspace() 复用，保证 cwd/根一致
         this.workspace = new FileWorkspace(appProperties.resolvedWorkspaceRoot());
         this.trace = trace;
     }
 
+    /** 供 TerminalTools 等复用同一 FileWorkspace 实例。 */
     public FileWorkspace getWorkspace() {
         return workspace;
     }
@@ -72,16 +77,61 @@ public class FileTools {
 
     /**
      * 列出工作区内目录条目（非递归）。
+     *
+     * <p>对齐 Python {@code ls} tool；{@code name = "ls"} 保证模型看到的工具名与 Python 一致。
      */
     @Tool(name = "ls", description = "List files and subdirectories under a path in the workspace "
             + "(non-recursive). Arg path: relative path, default '.'.")
     public String ls(
             @ToolParam(description = "Relative path under workspace root; default '.'") String path) {
+        // Spring 可能把未填参数绑成 null；与 FileWorkspace.listDir 的空串处理对齐
         String p = (path == null || path.isBlank()) ? "." : path;
         trace.toolStart("ls", "path=" + p);
         String result = workspace.listDir(p);
         trace.toolEnd(result);
         log.debug("ls path={} resultLen={}", p, result == null ? 0 : result.length());
+        return result;
+    }
+
+    /**
+     * 唯一匹配局部编辑（对齐 Python {@code edit_file}）。
+     *
+     * <p>oldStr 必须恰好出现一次；否则返回 Error 且不改文件。
+     */
+    @Tool(name = "edit_file", description = "Safely edit a file by replacing exactly one occurrence of old_str with new_str. "
+            + "Fails without modifying the file if old_str is missing or appears more than once. "
+            + "Args: path (relative), old_str, new_str.")
+    public String editFile(
+            @ToolParam(description = "Relative path from workspace root") String path,
+            @ToolParam(description = "Exact substring that must appear once") String oldStr,
+            @ToolParam(description = "Replacement text") String newStr) {
+        // 轨迹只记长度：old/new 可能含密钥或整文件片段，不宜进 Logback
+        trace.toolStart("edit_file", "path=" + path
+                + ", oldLen=" + (oldStr == null ? 0 : oldStr.length())
+                + ", newLen=" + (newStr == null ? 0 : newStr.length()));
+        // 唯一匹配等业务规则全部在 FileWorkspace，这里只做 @Tool 边界
+        String result = workspace.editFile(path, oldStr, newStr);
+        trace.toolEnd(result);
+        log.debug("edit_file path={} ok={}", path, result);
+        return result;
+    }
+
+    /**
+     * 工作区内文本搜索（对齐 Python {@code grep}）。
+     *
+     * <p>应用层子串搜索，不走 shell；返回 {@code rel_path:line_no:snippet}。
+     */
+    @Tool(name = "grep", description = "Search for a text pattern under a workspace path (application-level, not shell). "
+            + "Returns lines as rel_path:line_no:snippet. Skips .venv/target/__pycache__/etc. "
+            + "Args: pattern (required), path (relative, default '.').")
+    public String grep(
+            @ToolParam(description = "Text pattern to search for") String pattern,
+            @ToolParam(description = "Relative path under workspace; default '.'") String path) {
+        String p = (path == null || path.isBlank()) ? "." : path;
+        trace.toolStart("grep", "pattern=" + pattern + ", path=" + p);
+        String result = workspace.grep(pattern, p);
+        trace.toolEnd(result);
+        log.debug("grep path={} resultLen={}", p, result == null ? 0 : result.length());
         return result;
     }
 }

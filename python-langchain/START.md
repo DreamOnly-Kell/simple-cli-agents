@@ -31,12 +31,15 @@ uv sync --python 3.14 --extra dev
 # 2) 配置密钥（首次）
 cp -n .env.example .env
 # 编辑 .env：OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL
+# （可选）SHELL_BLOCKED_PATTERNS / SHELL_TIMEOUT_SECONDS 见 .env.example
 
 # 3) 启动主入口（uv run 会自动用项目 .venv）
 uv run python -m simple_cli_agent
 ```
 
 看到 `you>` 就可以对话。退出：`exit` / `quit` / `Ctrl-C`。
+
+可用 tools：`read_file` / `write_file` / `edit_file` / `ls` / `grep` / `run_command`（完整说明见 [README.md](./README.md)）。
 
 等价入口：
 

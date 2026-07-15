@@ -66,6 +66,18 @@ mvn test
 | Logback | 控制台 + `logs/app.log` |
 | HTTP JSONL | `logs/http-session-*.jsonl` |
 
+## 可用 tools（与 Python 语义对齐）
+
+| Tool | 说明 |
+|------|------|
+| `readFile` / `writeFile` | 工作区读写 |
+| `edit_file` | 唯一匹配局部编辑 |
+| `ls` / `grep` | 列目录 / 应用层搜索 |
+| `run_command` | 工作区根 shell；`app.shell-blocked-patterns` 拦截高危 |
+
+配置：`app.workspace-root`、`app.shell-timeout-seconds`、`app.shell-blocked-patterns`（见 `application.yml`）。  
+完整说明：[README.md](./README.md)。
+
 ## 姊妹项目
 
 Python 版：[`../python-langchain`](../python-langchain/)（可用 `.env`；本子项目只用 Spring 配置）。

@@ -1,9 +1,11 @@
 """
 Agent 组装：把「模型 + 工具 + 系统提示 + 多轮记忆」绑成一条 LangChain agent 图。
 
-学习路径上的位置:
-    CLI 收用户输入 → agent.invoke →（内部）模型 ⇄ tools 多跳 → 返回 messages
-    本模块只负责「建好这张图」，不负责 REPL 交互。
+两层循环中的位置:
+    外层 CLI：input → invoke → print
+    内层（本模块建好的图）：单次 invoke 内 模型 ⇄ tools 多跳 → 返回 messages
+
+本模块只负责「建好这张图」，不负责 REPL。tools 列表见 make_agent_tools。
 """
 
 from __future__ import annotations
@@ -24,11 +26,16 @@ SYSTEM_PROMPT = """You are a minimal terminal coding assistant for learning agen
 You have these tools:
 - read_file(path): read a text file under the workspace
 - write_file(path, content): create or overwrite a text file under the workspace
+- edit_file(path, old_str, new_str): replace exactly one occurrence of old_str
+  (fails if 0 or multiple matches; file unchanged on failure)
+- grep(pattern, path="."): search text under a workspace path; returns path:line:snippet
 - ls(path): list files/directories under a workspace path (non-recursive)
 - run_command(command): run a shell command with cwd=workspace root
   (dangerous commands may be blocked by policy)
 
 Rules:
+- Prefer grep to find code, then read_file/edit_file to change it.
+- Prefer edit_file for local code changes; use write_file only for new/full rewrites.
 - Prefer tools when the user asks about files or shell commands.
 - Paths are relative to the workspace root.
 - Be concise. After finishing the user's request for this turn, stop and wait
@@ -42,7 +49,7 @@ def build_agent(model: ChatOpenAI, config: AppConfig):
 
     做了什么:
         1. 用 config.workspace_root 建 FileWorkspace 沙箱
-        2. make_agent_tools 得到 read/write/ls/run_command
+        2. make_agent_tools 得到 read/write/edit/grep/ls/run_command
         3. MemorySaver 作为 checkpointer（同 thread_id 跨 invoke 保留历史）
         4. create_agent 组装官方推荐的单条 agent 路径（方案 A）
 

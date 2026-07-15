@@ -66,10 +66,11 @@ class AppConfig:
 
 def _parse_blocked_patterns(raw: str | None) -> tuple[str, ...]:
     """
-    解析 SHELL_BLOCKED_PATTERNS。
+    解析 SHELL_BLOCKED_PATTERNS 环境变量。
 
-    格式：用 ``||`` 分隔 pattern（因 pattern 本身可能含逗号）。
-    空字符串表示使用默认列表；若要显式清空拦截，设为 ``-`` 或 ``none``。
+    - 未设置 / 空串 → 代码默认高危列表
+    - ``none`` / ``off`` / ``-`` → 空元组（关闭拦截，仅学习调试用）
+    - 其它：用 ``||`` 分隔（pattern 本身可能含逗号，故不用逗号分隔）
     """
     if raw is None:
         return DEFAULT_BLOCKED_PATTERNS
@@ -77,8 +78,9 @@ def _parse_blocked_patterns(raw: str | None) -> tuple[str, ...]:
     if not text:
         return DEFAULT_BLOCKED_PATTERNS
     if text.lower() in {"-", "none", "off"}:
-        return ()
+        return ()  # 显式清空，与「未配置」语义不同
     parts = [p.strip() for p in text.split("||") if p.strip()]
+    # 只写了分隔符没有实质 pattern 时，仍回退默认，避免静默变成「全放行」
     return tuple(parts) if parts else DEFAULT_BLOCKED_PATTERNS
 
 
@@ -105,6 +107,8 @@ def load_config(
     参数:
         api_key / base_url / model / workspace: 连接与沙箱相关
         verbose / verbose_full / http_log / http_log_dir: 可观测性开关
+        shell_blocked_patterns / shell_timeout_seconds: run_command 策略
+            （env: SHELL_BLOCKED_PATTERNS 用 || 分隔；SHELL_TIMEOUT_SECONDS）
         dotenv_path: 指定 .env 路径；None 时由 python-dotenv 按默认规则查找
     """
     # 把 .env 加载进 os.environ（已存在的环境变量通常不会被覆盖，取决于 dotenv 版本默认）
@@ -130,10 +134,12 @@ def load_config(
         if http_log_dir is not None
         else os.getenv("HTTP_LOG_DIR", "logs")
     )
+    # shell 策略：CLI 显式列表优先，否则解析 SHELL_BLOCKED_PATTERNS（|| 分隔）
     if shell_blocked_patterns is not None:
         blocked = tuple(shell_blocked_patterns)
     else:
         blocked = _parse_blocked_patterns(os.getenv("SHELL_BLOCKED_PATTERNS"))
+    # 超时：至少在构造 AppConfig 时 clamp 到 >=1
     if shell_timeout_seconds is not None:
         timeout = int(shell_timeout_seconds)
     else:

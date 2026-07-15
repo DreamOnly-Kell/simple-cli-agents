@@ -17,12 +17,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 /**
- * 终端 REPL：多轮对话，每轮 {@code ChatClient.call()} 结束后等人。
+ * 终端 REPL：外层人机循环；每轮 {@code ChatClient.call()} 结束后等人。
  *
- * <p>对照 Python {@code cli.main} 循环：
- * input → agent.invoke → print → input。
+ * <p>两层循环（对照 DNA-05 / Python {@code cli.main}）：
+ * <ul>
+ *   <li>外层：readLine → call → print → readLine</li>
+ *   <li>内层：单次 call 内 model ⇄ tools 多跳（Spring AI 执行）</li>
+ * </ul>
  *
- * <p>{@link Order} 取较大值，确保其它自动配置先完成。
+ * <p>{@link Order} 取较大值，确保 ConnectionDiagnostics 等先跑完。
  */
 @Component
 @Order(100)

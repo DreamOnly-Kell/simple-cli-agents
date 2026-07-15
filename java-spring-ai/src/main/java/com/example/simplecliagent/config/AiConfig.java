@@ -39,11 +39,16 @@ public class AiConfig {
             You have these tools:
             - readFile(path): read a text file under the workspace
             - writeFile(path, content): create or overwrite a text file under the workspace
+            - edit_file(path, old_str, new_str): replace exactly one occurrence of old_str
+              (fails if 0 or multiple matches; file unchanged on failure)
+            - grep(pattern, path="."): search text under a workspace path; returns path:line:snippet
             - ls(path): list files/directories under a workspace path (non-recursive)
             - run_command(command): run a shell command with cwd=workspace root
               (dangerous commands may be blocked by policy)
 
             Rules:
+            - Prefer grep to find code, then readFile/edit_file to change it.
+            - Prefer edit_file for local code changes; use writeFile only for new/full rewrites.
             - Prefer tools when the user asks about files or shell commands.
             - Paths are relative to the workspace root.
             - Be concise. After finishing the user's request for this turn, stop and wait

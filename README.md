@@ -26,10 +26,10 @@ This monorepo ships the **smallest runnable “engine”** of a coding agent —
 
 | Layer | Role |
 |-------|------|
-| **This repo** | Agent loop + native tool calling + file read/write + observability |
-| **Product agents** | That engine **plus** tool surface, context ops, permissions/sandbox, reliability, UX |
+| **This repo** | Agent loop + native tool calling + file/shell tools + observability |
+| **Product agents** | That engine **plus** larger tool surface, context ops, OS sandbox, reliability, UX |
 
-Later features (search, shell, OS sandbox, memory products, polish) are **capability, safety, and product** — not “UX only.”
+Later layers (OS sandbox, durable memory, product UX, MCP) are **capability, safety, and product** — not “UX only.”
 
 ---
 
@@ -37,7 +37,7 @@ Later features (search, shell, OS sandbox, memory products, polish) are **capabi
 
 1. **Root capability first** — Learn the real turn cycle before stacking product features.  
 2. **Framework wrappers first** — Use LangChain / Spring AI tool-calling agents; don’t hand-roll a runtime in v1.  
-3. **Thin scope** — Multi-turn chat, two file tools, turn-based handoff, observability.  
+3. **Thin but real tool surface** — Multi-turn, file R/W + unique-match edit + ls + app-level grep + guarded shell, observability.  
 4. **OpenAI-compatible only** — Point `base_url` at any compatible endpoint (OpenAI, gateways, local servers).  
 5. **Twin implementations** — Same behavior slice, different frameworks, easy to compare.  
 6. **Path jail, not OS sandbox** — Workspace root checks only; not containers / Seatbelt / bubblewrap.  
@@ -68,19 +68,30 @@ Shared decision constraints: [`docs/PROJECT_DNA.md`](./docs/PROJECT_DNA.md).
                             │
               ┌─────────────┴─────────────┐
               ▼                           ▼
-     File tools (sandbox)        Observability
-     read / write                logic trace + HTTP JSONL
+     Tools (workspace-scoped)      Observability
+     read / write / edit           logic trace + HTTP JSONL
+     ls / grep / run_command
 ```
 
 ### Tools on the wire (not in `content`)
 
 OpenAI-compatible requests expose tools as a **top-level `tools` array** (function schemas). The model’s intent appears as **`tool_calls`**; results return as **`role: tool`** messages. Tool definitions are not stuffed into free-form `content` text.
 
-### File tools
+### Tools (both stacks, same semantics)
 
-- Resolve paths under a workspace root; reject escapes (`../`, absolute paths outside root).  
-- UTF-8 read (optional truncate); write = full-file overwrite.  
-- Errors return strings like `Error: ...` so the model can recover.
+| Tool | Behavior |
+|------|----------|
+| `read_file` | UTF-8 read under workspace; soft-truncate huge files |
+| `write_file` | Full-file overwrite; create parents |
+| `edit_file` | Replace **exactly one** occurrence of `old_str`; 0/N matches → Error, file unchanged |
+| `ls` | Non-recursive listing; dirs end with `/` |
+| `grep` | App-level substring search (`path:line:snippet`); skips `.venv`/`target`/…; caps results |
+| `run_command` | Shell at workspace root; configurable danger blocklist; timeout + output truncate |
+
+Shared rules:
+
+- Path jail on **file** tools (`../` / absolute escape → `Error: ...`). Shell cwd is the workspace root but is **not** a full OS sandbox.  
+- Failures return strings starting with `Error:` so the model can recover next hop.
 
 ### Multi-turn
 
@@ -122,6 +133,8 @@ Same acceptance line: **multi-turn · tool use · wait for user · observable**.
 | End-of-turn returns control | after `invoke` | after `ChatClient.call()` |
 | Read file tool | `read_file` | `readFile` (`@Tool`) |
 | Write file tool (overwrite) | `write_file` | `writeFile` |
+| Safe local edit (unique match) | `edit_file` | `edit_file` (`@Tool`) |
+| Workspace text search | `grep` | `grep` (`@Tool`) |
 | List directory tool | `ls` | `ls` (`@Tool`) |
 | Shell command tool | `run_command` | `run_command` (`@Tool`) |
 | Block dangerous shell commands (configurable) | `SHELL_BLOCKED_PATTERNS` | `app.shell-blocked-patterns` |
@@ -133,7 +146,9 @@ Same acceptance line: **multi-turn · tool use · wait for user · observable**.
 | Config | `.env` + CLI | `application.yml` / `application-local.yml` (**no `.env` file**) |
 | Unit tests (no live LLM) | pytest | JUnit 5 |
 
-**Out of scope (both):** unrestricted shell, search, git tooling, patch edits, OS sandbox, streaming-first UX, durable product memory, multi-agent, MCP, Claude Code / Codex feature parity.
+**Out of scope (both):** unrestricted shell (no OS sandbox), regex/semantic code index, git tooling, true patch/diff editors, streaming-first UX, durable product memory, multi-agent, MCP, Claude Code / Codex feature parity.
+
+> Note: app-level `grep` and **policy-blocked** `run_command` **are** in scope (see matrix above).
 
 ---
 
@@ -183,10 +198,13 @@ Details: [`java-spring-ai/START.md`](./java-spring-ai/START.md)
 | Doc | Description |
 |-----|-------------|
 | [README_CN.md](./README_CN.md) | Chinese version of this README |
-| [docs/PROJECT_DNA.md](./docs/PROJECT_DNA.md) | Shared decision constraints |
-| [docs/python-langchain/](./docs/python-langchain/) | Python handoff, plan, design |
-| [docs/java-spring-ai/](./docs/java-spring-ai/) | Java DNA + implementation plan |
+| [docs/README.md](./docs/README.md) | Doc index (DNA = source of truth) |
+| [docs/PROJECT_DNA.md](./docs/PROJECT_DNA.md) | Shared decision constraints + current tools |
+| [docs/python-langchain/](./docs/python-langchain/) | Python DNA / handoff / historical plan & design |
+| [docs/java-spring-ai/](./docs/java-spring-ai/) | Java DNA + historical implementation plan |
 | Subproject `README.md` / `START.md` | Stack-specific setup |
+
+**Freeze note:** Feature work paused at current tool surface. Prefer DNA + this README over historical specs when they disagree.
 
 ---
 

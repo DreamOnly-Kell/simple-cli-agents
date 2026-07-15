@@ -1,10 +1,14 @@
 """
 终端 REPL 入口：解析参数、组装 agent、循环读用户输入并 invoke。
 
-交互契约（验收线）:
+两层循环（对照 DNA-05）:
+    外层：input → agent.invoke → print → input（本轮交还用户）
+    内层：单次 invoke 内 model ⇄ tools 多跳（框架执行，callback/jsonl 可观察）
+
+交互契约:
     1. 多轮：同一 thread_id + checkpointer
-    2. 能用 tools：agent 内自动执行
-    3. 本轮 invoke 返回后打印结果，再阻塞在 input() —— 不空转
+    2. tools：read/write/edit/grep/ls/run_command（agent 内自动执行）
+    3. invoke 返回后阻塞 input() —— 不空转
 """
 
 from __future__ import annotations
@@ -37,8 +41,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--base-url", default=None, help="OpenAI-compatible API base URL")
     p.add_argument("--model", default=None, help="Model name")
     p.add_argument("--api-key", default=None, help="API key (else OPENAI_API_KEY)")
-    # 文件工具沙箱
-    p.add_argument("--workspace", default=None, help="Workspace root for file tools")
+    # 文件 tool 路径门禁根，同时是 run_command 的 cwd
+    p.add_argument(
+        "--workspace",
+        default=None,
+        help="Workspace root (file tools path jail + run_command cwd)",
+    )
     # 可观测性：verbose 与 quiet 互斥逻辑在 main 里处理
     p.add_argument("--verbose", action="store_true", default=None, help="Console traces on")
     p.add_argument("--quiet", action="store_true", help="Disable console traces")

@@ -1,7 +1,9 @@
 # Simple CLI Agent — Design Spec
 
-> **Status:** Approved and implemented (v1) under monorepo `simple-cli-agents/python-langchain`  
-> **Aligns with:** [`PROJECT_DNA.md`](../../PROJECT_DNA.md), [`HANDOFF.md`](../../HANDOFF.md), [`PLAN.md`](../../PLAN.md); shared DNA [`../../../PROJECT_DNA.md`](../../../PROJECT_DNA.md)  
+> **Status:** Historical design snapshot for **v1 root loop** (approved & implemented).  
+> **Current capability / boundary of truth:** [`docs/PROJECT_DNA.md`](../../../../PROJECT_DNA.md) and code under `python-langchain/`.  
+> **Post-v1 (already in code, not fully rewritten into this spec):** `edit_file`, `ls`, `grep`, policy-blocked `run_command`.  
+> **Aligns with (intent):** [`PROJECT_DNA.md`](../../PROJECT_DNA.md), [`HANDOFF.md`](../../HANDOFF.md), [`PLAN.md`](../../PLAN.md)  
 > **Architecture choice:** Approach A (single LangChain agent path), OpenAI-compatible only  
 > **Code:** [`../../../../python-langchain/`](../../../../python-langchain/)
 
@@ -17,24 +19,26 @@ Success is **walk-through + observability**, not product completeness.
 
 ## 2. Goals and Non-Goals
 
-### Goals (v1 Done)
+### Goals (v1 Done — root engine)
 
 1. Multi-turn terminal chat (in-process history).
-2. Tool use: **read_file** and **write_file** inside a workspace sandbox.
+2. Tool use: **read_file** and **write_file** inside a workspace sandbox *(v1 minimum; see DNA-04 for full current tool list)*.
 3. Turn-based control: after the model finishes a turn (no more tool calls / agent invoke returns), CLI **blocks on next user input**.
 4. **Dual observability:**
    - **Console:** logical LLM I/O + tool trace (learning-oriented).
    - **HTTP log files:** as close as practical to raw OpenAI-compatible HTTP request/response.
 5. Single model integration surface: **OpenAI-compatible Chat Completions** only (`base_url` + `api_key` + `model`).
 
-### Non-Goals (deferred; later branches if needed)
+### Non-Goals (still deferred relative to product agents)
 
 - Anthropic native API, OpenAI Responses API as a separate product path.
 - Per-provider runtimes (former Approach B).
-- Shell execution, code search, git tools, multi-agent, durable sessions.
+- Unrestricted shell / OS sandbox, semantic code index, git product tools, multi-agent, durable product sessions.
 - Streaming responses.
 - Rich TUI, permission product UX, Claude Code–level features.
 - Hand-rolled agent runtime (use LangChain encapsulation first — DNA-02).
+
+> Note: app-level `grep` and **policy-blocked** `run_command` are **in current monorepo scope** (DNA-04); this section originally deferred bare shell/search before those landings.
 
 ---
 
@@ -45,7 +49,7 @@ Success is **walk-through + observability**, not product completeness.
 | DNA-01 | Learning/verification first |
 | DNA-02 | LangChain wrappers first; no custom runtime v1 |
 | DNA-03 | Thin scope; Pi-like lightness, not Claude Code |
-| DNA-04 | Terminal mini code assistant: LLM + read/write tools |
+| DNA-04 | Terminal mini code assistant: LLM + tools (see current DNA for full list) |
 | DNA-05 | Multi-turn + end-of-turn returns control to user |
 | DNA-06 | “Works with clear feel” is enough |
 

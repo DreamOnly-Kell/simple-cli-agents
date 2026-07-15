@@ -23,12 +23,16 @@ spring:
           temperature: 0.0
 
 app:
+  # 文件/ls/grep/edit 沙箱根；run_command 的 cwd 也用此路径
   workspace-root: ${user.dir}
   verbose: true
   http-log: true
   http-log-dir: logs
   verbose-char-limit: 2000
+  # run_command 超时（秒）；至少 1
   shell-timeout-seconds: 30
+  # 危险命令子串拦截（大小写不敏感，空白压缩后匹配）。
+  # 若列表为空，代码回退到 CommandGuard.DEFAULT_BLOCKED_PATTERNS。
   shell-blocked-patterns:
     - "rm -rf /"
     - "rm -rf/*"

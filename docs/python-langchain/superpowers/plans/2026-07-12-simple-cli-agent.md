@@ -1,10 +1,11 @@
 # Simple CLI Agent Implementation Plan（python-langchain）
 
-> **Status:** v1 **implemented** under monorepo path `simple-cli-agents/python-langchain/`  
+> **Status:** Historical v1 task breakdown — **implemented**.  
+> **Current tools / boundary:** [`docs/PROJECT_DNA.md`](../../../../PROJECT_DNA.md) (includes edit/ls/grep/run_command post-v1).  
 > **Code:** [`../../../../python-langchain/`](../../../../python-langchain/)  
-> Historical task breakdown; see also [`../../PLAN.md`](../../PLAN.md).
+> See also [`../../PLAN.md`](../../PLAN.md).
 
-**Goal:** Minimal terminal code agent (LangChain + OpenAI-compatible) with read/write tools, multi-turn REPL, console traces, and HTTP jsonl logs.
+**Goal (v1):** Minimal terminal code agent (LangChain + OpenAI-compatible) with read/write tools, multi-turn REPL, console traces, and HTTP jsonl logs.
 
 **Architecture:** Single `create_agent` path; `ChatOpenAI` only; httpx hooks for wire logs; callbacks for console; workspace-sandboxed file tools.
 

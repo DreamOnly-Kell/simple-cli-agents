@@ -1,20 +1,21 @@
 # Plan · python-langchain（学习用）
 
-> 对齐：[`PROJECT_DNA.md`](./PROJECT_DNA.md) + [`HANDOFF.md`](./HANDOFF.md)  
-> 目标：用 LangChain **跑通** 多轮 + 读/写文件 tool + 本轮结束等人 + 可观测  
-> **代码目录**：[`../../python-langchain/`](../../python-langchain/)  
-> **状态**：v1 任务 **已完成**（checkbox 保留为历史拆分记录）
+> **状态**：历史任务拆分；**v1 已完成**。  
+> **现行边界**：[`PROJECT_DNA.md`](./PROJECT_DNA.md) + 共享 DNA + 代码（含 edit/ls/grep/run_command）。  
+> 对齐：[`HANDOFF.md`](./HANDOFF.md)  
+> 原目标：用 LangChain **跑通** 多轮 + 读/写文件 tool + 本轮结束等人 + 可观测  
+> **代码目录**：[`../../python-langchain/`](../../python-langchain/)
 
 ---
 
-## 0. 完成定义（Done）
+## 0. 完成定义（Done · v1 根引擎）
 
 1. 终端可多轮对话（历史能接上）  
-2. Agent 能按需调用 **读文件 / 改文件**  
+2. Agent 能按需调用 **读文件 / 写文件**（v1 最小集；现行完整工具见 DNA-04）  
 3. 模型本轮结束后，CLI **停住等待**下一句输入  
 4. 能看见 tool 调用与 HTTP jsonl（体感验证）  
 
-非目标：Claude Code 级能力、手搓 runtime、权限产品化、多 agent、git/搜索等。
+非目标（相对产品）：Claude Code 级能力、手搓 runtime、OS 沙箱、多 agent、语义索引、MCP 等。
 
 ---
 
@@ -69,15 +70,17 @@
 
 ---
 
-## 3. 本 plan 之外（仍推迟）
+## 3. 本 plan 之外（仍推迟 / 非本 plan 范围）
 
 - 手写 ReAct / 自建 runtime  
-- Shell / 搜索 / git  
-- 会话持久化、skills、对齐 Claude Code 完整交互  
+- 无策略裸 shell、OS 沙箱、语义索引、git 专用工具  
+- 会话持久化、MCP、对齐 Claude Code 完整交互  
+
+> 说明：应用层 `grep`、策略拦截的 `run_command`、`edit_file` / `ls` **已在后续迭代落地**；现行边界见 DNA。
 
 ---
 
-## 4. 下一步（可选）
+## 4. 下一步（可选 · 学习向）
 
-- 与 `java-spring-ai` 对照学习同一理论节点  
+- 与 `java-spring-ai` 对照同一任务，对照 `tools` / `tool_calls` / JSONL  
 - 需要加能力时先改 DNA / Handoff，再开新 plan  
