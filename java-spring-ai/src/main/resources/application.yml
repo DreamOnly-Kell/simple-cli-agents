@@ -1,0 +1,37 @@
+# 仅 Spring 配置。不读取 .env 文件。
+#
+# 推荐：密钥写在 application-local.yml（gitignore），然后：
+#   mvn spring-boot:run -Dspring-boot.run.profiles=local
+#
+# 属性不要写反：
+#   api-key  = 密钥（sk-... / tp-...）
+#   base-url = https://... 主机根路径，不要带 /v1
+
+spring:
+  main:
+    web-application-type: none
+    banner-mode: off
+  ai:
+    openai:
+      # 可用环境变量覆盖：SPRING_AI_OPENAI_API_KEY 等
+      # 注意：${VAR:} 空默认会变成 ""，Spring AI 会直接启动失败；base-url/model 必须有非空默认
+      api-key: ${SPRING_AI_OPENAI_API_KEY:}
+      base-url: ${SPRING_AI_OPENAI_BASE_URL:https://api.openai.com}
+      chat:
+        options:
+          model: ${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL:gpt-4o-mini}
+          temperature: 0.0
+
+app:
+  workspace-root: ${user.dir}
+  verbose: true
+  http-log: true
+  http-log-dir: logs
+  verbose-char-limit: 2000
+
+logging:
+  level:
+    root: INFO
+    cli.trace: INFO
+    com.example.simplecliagent: INFO
+    org.springframework.ai: INFO

@@ -1,0 +1,47 @@
+# --- Secrets / local overrides ---
+.env
+.env.*
+!.env.example
+application-local.yml
+**/application-local.yml
+
+# --- Local session resume (IMPORTANT: do not delete casually) ---
+# 保存当前会话 id，用于下次续聊；仅本地，不进版本库。
+session.txt
+
+# --- Maven / Gradle build outputs ---
+target/
+**/target/
+build/
+.gradle/
+**/.gradle/
+out/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# --- Runtime logs (Logback + HTTP jsonl) ---
+logs/
+**/logs/
+*.log
+
+# --- IDE / OS ---
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+.DS_Store
+*.swp
+*~
+.Spotlight-V100
+.Trashes
+
+# --- Test / coverage (if added later) ---
+.jacoco/
+**/jacoco.exec

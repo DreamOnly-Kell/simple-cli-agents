@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simple-cli-agent"
+version = "0.1.0"
+description = "Minimal LangChain terminal code agent (learning demo)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain>=1.0",
+    "langchain-openai>=0.3",
+    "langchain-core>=0.3",
+    "openai>=1.40",
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+simple-cli-agent = "simple_cli_agent.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["simple_cli_agent*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

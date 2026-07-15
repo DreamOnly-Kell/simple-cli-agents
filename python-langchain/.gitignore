@@ -1,0 +1,81 @@
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Local session resume (IMPORTANT: do not delete casually) ---
+# 保存当前 Grok/CLI 会话 id，用于下次 `grok --resume ...` 续聊。
+# 仅本地使用，不进版本库。
+session.txt
+
+# --- Runtime logs ---
+logs/
+*.log
+
+# --- Virtual environments (uv uses .venv) ---
+.venv/
+venv/
+env/
+ENV/
+.path/
+path/
+
+# --- Python bytecode / caches ---
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# --- Test / type / lint / coverage ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.cache/
+
+# --- Build / packaging ---
+build/
+dist/
+*.egg
+*.egg-info/
+**/*.egg-info/
+simple_cli_agent.egg-info/
+.eggs/
+pip-wheel-metadata/
+*.whl
+site/
+*.manifest
+*.spec
+
+# --- uv / tooling ---
+# uv.lock is tracked for reproducible installs
+.python-version
+
+# --- Editors / OS ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.Spotlight-V100
+.Trashes
+
+# --- Agent/editor local state (not app runtime) ---
+.agents/
+skills-lock.json
+
+# --- Jupyter / misc ---
+.ipynb_checkpoints/
+.dmypy.json
+dmypy.json

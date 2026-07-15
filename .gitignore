@@ -1,0 +1,49 @@
+# Secrets（任意层级误放的 .env 都忽略）
+.env
+.env.*
+!**/.env.example
+
+# Local Spring overrides (never commit real secrets)
+application-local.yml
+**/application-local.yml
+
+# Parent monorepo — local session resume (IMPORTANT, do not delete casually)
+session.txt
+**/session.txt
+
+# Runtime logs (any package)
+logs/
+**/logs/
+*.log
+
+# Python junk (any package)
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+**/*.egg-info/
+.eggs/
+
+# Java / build outputs (any package)
+target/
+**/target/
+build/
+.gradle/
+**/.gradle/
+out/
+*.class
+*.jar
+*.war
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
