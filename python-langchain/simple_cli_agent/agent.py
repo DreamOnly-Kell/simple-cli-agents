@@ -14,18 +14,22 @@ from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
 
 from simple_cli_agent.config import AppConfig
-from simple_cli_agent.tools.files import FileWorkspace, make_file_tools
+from simple_cli_agent.tools.agent_tools import make_agent_tools
+from simple_cli_agent.tools.files import FileWorkspace
 
 # 系统提示：告诉模型自己的角色、有哪些工具、路径规则、何时停止
 # 这是「策略层」约束，和 tool schema（能力层）互补
 SYSTEM_PROMPT = """You are a minimal terminal coding assistant for learning agent/tool-use.
 
-You have two tools:
+You have these tools:
 - read_file(path): read a text file under the workspace
 - write_file(path, content): create or overwrite a text file under the workspace
+- ls(path): list files/directories under a workspace path (non-recursive)
+- run_command(command): run a shell command with cwd=workspace root
+  (dangerous commands may be blocked by policy)
 
 Rules:
-- Prefer tools when the user asks about or wants to change files.
+- Prefer tools when the user asks about files or shell commands.
 - Paths are relative to the workspace root.
 - Be concise. After finishing the user's request for this turn, stop and wait
   (do not invent extra tasks).
@@ -38,13 +42,13 @@ def build_agent(model: ChatOpenAI, config: AppConfig):
 
     做了什么:
         1. 用 config.workspace_root 建 FileWorkspace 沙箱
-        2. make_file_tools 得到 read_file / write_file
+        2. make_agent_tools 得到 read/write/ls/run_command
         3. MemorySaver 作为 checkpointer（同 thread_id 跨 invoke 保留历史）
         4. create_agent 组装官方推荐的单条 agent 路径（方案 A）
 
     参数:
         model:  build_chat_model 得到的 ChatOpenAI
-        config: 至少使用 workspace_root
+        config: workspace_root + shell 策略等
 
     返回:
         (agent, checkpointer)
@@ -58,8 +62,12 @@ def build_agent(model: ChatOpenAI, config: AppConfig):
     """
     # 沙箱根 = 配置里的工作区
     workspace = FileWorkspace(config.workspace_root)
-    # 绑定到该 workspace 的 LangChain tools
-    tools = make_file_tools(workspace)
+    # 绑定到该 workspace 的 LangChain tools（含 shell 策略）
+    tools = make_agent_tools(
+        workspace,
+        blocked_patterns=config.shell_blocked_patterns,
+        shell_timeout_seconds=config.shell_timeout_seconds,
+    )
     # 内存 checkpointer：进程退出即丢，符合 v1「不持久化会话」
     checkpointer = MemorySaver()
     # create_agent: LangChain 1.x 推荐入口，内部是 LangGraph 状态机循环

@@ -123,6 +123,9 @@ simple-cli-agents/
 | 本轮结束交还用户 | `invoke` 返回后 | `ChatClient.call()` 返回后 |
 | 读文件 tool | `read_file` | `readFile`（`@Tool`） |
 | 写文件 tool（覆盖） | `write_file` | `writeFile` |
+| 列目录 tool | `ls` | `ls`（`@Tool`） |
+| 终端命令 tool | `run_command` | `run_command`（`@Tool`） |
+| 配置拦截高危 shell 命令 | `SHELL_BLOCKED_PATTERNS` | `app.shell-blocked-patterns` |
 | 工作区路径门禁 | `FileWorkspace` | `FileWorkspace` |
 | OpenAI 兼容 Chat Completions | `ChatOpenAI` | Spring AI OpenAI starter |
 | 系统提示 | `SYSTEM_PROMPT` | `AiConfig.SYSTEM_PROMPT` |
@@ -131,7 +134,7 @@ simple-cli-agents/
 | 配置 | `.env` + CLI | `application.yml` / `application-local.yml`（**不读 .env**） |
 | 单测（无真 LLM） | pytest | JUnit 5 |
 
-**刻意未做：** Shell / 搜索 / git / 补丁编辑、OS 沙箱、流式优先、产品级持久记忆、多 agent、MCP、对齐 Claude Code / Codex。
+**刻意未做：** 无策略的裸 shell、搜索 / git 专用工具、补丁编辑、OS 沙箱、流式优先、产品级持久记忆、多 agent、MCP、对齐 Claude Code / Codex。
 
 ---
 

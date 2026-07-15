@@ -122,6 +122,9 @@ Same acceptance line: **multi-turn · tool use · wait for user · observable**.
 | End-of-turn returns control | after `invoke` | after `ChatClient.call()` |
 | Read file tool | `read_file` | `readFile` (`@Tool`) |
 | Write file tool (overwrite) | `write_file` | `writeFile` |
+| List directory tool | `ls` | `ls` (`@Tool`) |
+| Shell command tool | `run_command` | `run_command` (`@Tool`) |
+| Block dangerous shell commands (configurable) | `SHELL_BLOCKED_PATTERNS` | `app.shell-blocked-patterns` |
 | Workspace path jail | `FileWorkspace` | `FileWorkspace` |
 | OpenAI-compatible Chat Completions | `ChatOpenAI` | Spring AI OpenAI starter |
 | System prompt | `SYSTEM_PROMPT` | `AiConfig.SYSTEM_PROMPT` |
@@ -130,7 +133,7 @@ Same acceptance line: **multi-turn · tool use · wait for user · observable**.
 | Config | `.env` + CLI | `application.yml` / `application-local.yml` (**no `.env` file**) |
 | Unit tests (no live LLM) | pytest | JUnit 5 |
 
-**Out of scope (both):** shell, search, git, patch edits, OS sandbox, streaming-first UX, durable product memory, multi-agent, MCP, Claude Code / Codex feature parity.
+**Out of scope (both):** unrestricted shell, search, git tooling, patch edits, OS sandbox, streaming-first UX, durable product memory, multi-agent, MCP, Claude Code / Codex feature parity.
 
 ---
 

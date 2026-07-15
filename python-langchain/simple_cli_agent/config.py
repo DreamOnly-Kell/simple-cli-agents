@@ -12,10 +12,12 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+from simple_cli_agent.tools.shell import DEFAULT_BLOCKED_PATTERNS
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -46,6 +48,8 @@ class AppConfig:
         verbose_full:   console 是否不截断长文本
         http_log:       是否写 HTTP jsonl
         http_log_dir:   HTTP 日志目录
+        shell_blocked_patterns: 终端命令拦截子串列表（大小写不敏感）
+        shell_timeout_seconds:  run_command 超时秒数
     """
 
     api_key: str
@@ -56,6 +60,26 @@ class AppConfig:
     verbose_full: bool
     http_log: bool
     http_log_dir: Path
+    shell_blocked_patterns: tuple[str, ...] = field(default_factory=lambda: DEFAULT_BLOCKED_PATTERNS)
+    shell_timeout_seconds: int = 30
+
+
+def _parse_blocked_patterns(raw: str | None) -> tuple[str, ...]:
+    """
+    解析 SHELL_BLOCKED_PATTERNS。
+
+    格式：用 ``||`` 分隔 pattern（因 pattern 本身可能含逗号）。
+    空字符串表示使用默认列表；若要显式清空拦截，设为 ``-`` 或 ``none``。
+    """
+    if raw is None:
+        return DEFAULT_BLOCKED_PATTERNS
+    text = raw.strip()
+    if not text:
+        return DEFAULT_BLOCKED_PATTERNS
+    if text.lower() in {"-", "none", "off"}:
+        return ()
+    parts = [p.strip() for p in text.split("||") if p.strip()]
+    return tuple(parts) if parts else DEFAULT_BLOCKED_PATTERNS
 
 
 def load_config(
@@ -68,6 +92,8 @@ def load_config(
     verbose_full: bool | None = None,
     http_log: bool | None = None,
     http_log_dir: str | None = None,
+    shell_blocked_patterns: tuple[str, ...] | list[str] | None = None,
+    shell_timeout_seconds: int | None = None,
     dotenv_path: str | Path | None = None,
 ) -> AppConfig:
     """
@@ -104,6 +130,14 @@ def load_config(
         if http_log_dir is not None
         else os.getenv("HTTP_LOG_DIR", "logs")
     )
+    if shell_blocked_patterns is not None:
+        blocked = tuple(shell_blocked_patterns)
+    else:
+        blocked = _parse_blocked_patterns(os.getenv("SHELL_BLOCKED_PATTERNS"))
+    if shell_timeout_seconds is not None:
+        timeout = int(shell_timeout_seconds)
+    else:
+        timeout = int(os.getenv("SHELL_TIMEOUT_SECONDS", "30"))
 
     return AppConfig(
         # strip 去掉 key 两端空白，避免 .env 复制时多空格
@@ -117,4 +151,6 @@ def load_config(
         verbose_full=verb_full,
         http_log=hlog,
         http_log_dir=Path(hdir).expanduser().resolve(),
+        shell_blocked_patterns=blocked,
+        shell_timeout_seconds=max(1, timeout),
     )

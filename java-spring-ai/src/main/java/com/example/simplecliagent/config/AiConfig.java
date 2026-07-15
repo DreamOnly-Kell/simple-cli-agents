@@ -3,6 +3,7 @@ package com.example.simplecliagent.config;
 import com.example.simplecliagent.observability.HttpJsonlLogger;
 import com.example.simplecliagent.observability.HttpLoggingInterceptor;
 import com.example.simplecliagent.tools.FileTools;
+import com.example.simplecliagent.tools.TerminalTools;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -19,7 +20,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * Spring AI 装配：ChatMemory、ChatClient（系统提示 + 文件 tools + 多轮记忆）。
+ * Spring AI 装配：ChatMemory、ChatClient（系统提示 + 文件/终端 tools + 多轮记忆）。
  *
  * <p>对照 Python {@code build_agent} / {@code build_chat_model}。
  */
@@ -35,12 +36,15 @@ public class AiConfig {
     public static final String SYSTEM_PROMPT = """
             You are a minimal terminal coding assistant for learning agent/tool-use.
 
-            You have two tools:
+            You have these tools:
             - readFile(path): read a text file under the workspace
             - writeFile(path, content): create or overwrite a text file under the workspace
+            - ls(path): list files/directories under a workspace path (non-recursive)
+            - run_command(command): run a shell command with cwd=workspace root
+              (dangerous commands may be blocked by policy)
 
             Rules:
-            - Prefer tools when the user asks about or wants to change files.
+            - Prefer tools when the user asks about files or shell commands.
             - Paths are relative to the workspace root.
             - Be concise. After finishing the user's request for this turn, stop and wait
               (do not invent extra tasks).
@@ -60,17 +64,21 @@ public class AiConfig {
     }
 
     /**
-     * 组装 ChatClient：系统提示 + FileTools + Memory Advisor。
+     * 组装 ChatClient：系统提示 + FileTools + TerminalTools + Memory Advisor。
      *
      * <p>Tool calling 循环由 Spring AI 在 {@code call()} 内处理，
      * 对应 Python {@code create_agent} 内部 model↔tool 多跳。
      */
     @Bean
-    public ChatClient chatClient(ChatClient.Builder builder, FileTools fileTools, ChatMemory chatMemory) {
+    public ChatClient chatClient(
+            ChatClient.Builder builder,
+            FileTools fileTools,
+            TerminalTools terminalTools,
+            ChatMemory chatMemory) {
         return builder
                 .defaultSystem(SYSTEM_PROMPT)
                 // 注册 @Tool 方法所在 bean；模型可见 tools schema
-                .defaultTools(fileTools)
+                .defaultTools(fileTools, terminalTools)
                 // 多轮：同一 conversationId 下自动带历史
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();

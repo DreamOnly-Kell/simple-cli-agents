@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 /**
  * 暴露给模型的文件工具（Spring AI {@code @Tool}）。
  *
- * <p>对照 Python {@code make_file_tools}：这里用注解方法代替 StructuredTool；
+ * <p>对照 Python {@code make_file_tools} / {@code ls}：这里用注解方法代替 StructuredTool；
  * 真实磁盘逻辑仍委托 {@link FileWorkspace}。
  *
  * <p>方法名/描述会进入请求体顶层 {@code tools} schema，不是塞进 content。
@@ -67,6 +67,21 @@ public class FileTools {
         String result = workspace.writeFile(path, content);
         trace.toolEnd(result);
         log.debug("write_file path={} ok={}", path, result);
+        return result;
+    }
+
+    /**
+     * 列出工作区内目录条目（非递归）。
+     */
+    @Tool(name = "ls", description = "List files and subdirectories under a path in the workspace "
+            + "(non-recursive). Arg path: relative path, default '.'.")
+    public String ls(
+            @ToolParam(description = "Relative path under workspace root; default '.'") String path) {
+        String p = (path == null || path.isBlank()) ? "." : path;
+        trace.toolStart("ls", "path=" + p);
+        String result = workspace.listDir(p);
+        trace.toolEnd(result);
+        log.debug("ls path={} resultLen={}", p, result == null ? 0 : result.length());
         return result;
     }
 }

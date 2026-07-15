@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 文件沙箱单测：不依赖 LLM，对齐 Python tests/test_files.py。
+ * 文件沙箱单测：不依赖 LLM，对齐 Python tests/test_files.py + list_dir。
  */
 class FileWorkspaceTest {
 
@@ -52,6 +52,40 @@ class FileWorkspaceTest {
     @Test
     void readMissingFileReturnsError() {
         String result = workspace.readFile("missing.txt");
+        assertTrue(result.toLowerCase().contains("error") || result.toLowerCase().contains("not found"));
+    }
+
+    @Test
+    void listDirListsWorkspaceFiles() throws Exception {
+        Files.writeString(tempDir.resolve("a.txt"), "x");
+        Path sub = tempDir.resolve("sub");
+        Files.createDirectories(sub);
+        Files.writeString(sub.resolve("b.txt"), "y");
+
+        String out = workspace.listDir(".");
+        assertTrue(out.contains("a.txt"));
+        assertTrue(out.contains("sub/") || out.contains("sub"));
+
+        String outSub = workspace.listDir("sub");
+        assertTrue(outSub.contains("b.txt"));
+    }
+
+    @Test
+    void listDirRejectsEscape() {
+        String result = workspace.listDir("../");
+        String lower = result.toLowerCase();
+        assertTrue(lower.contains("error") || lower.contains("denied") || lower.contains("escape"));
+    }
+
+    @Test
+    void listDirEmptyDirectory() {
+        String result = workspace.listDir(".");
+        assertTrue(result.contains("empty") || result.isBlank() || result.startsWith("(empty"));
+    }
+
+    @Test
+    void listDirMissingPathReturnsError() {
+        String result = workspace.listDir("no-such-dir");
         assertTrue(result.toLowerCase().contains("error") || result.toLowerCase().contains("not found"));
     }
 }

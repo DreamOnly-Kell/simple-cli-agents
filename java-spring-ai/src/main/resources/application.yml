@@ -28,6 +28,25 @@ app:
   http-log: true
   http-log-dir: logs
   verbose-char-limit: 2000
+  shell-timeout-seconds: 30
+  shell-blocked-patterns:
+    - "rm -rf /"
+    - "rm -rf/*"
+    - "rm -rf ~"
+    - "mkfs"
+    - "dd if="
+    - ":(){"
+    - "shutdown"
+    - "reboot"
+    - "halt"
+    - "poweroff"
+    - "curl|sh"
+    - "curl | sh"
+    - "wget|sh"
+    - "wget | sh"
+    - "sudo "
+    - "chmod -r 777 /"
+    - "> /dev/sd"
 
 logging:
   level:

@@ -4,15 +4,19 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Stream;
 
 /**
- * 工作区路径守卫 + 文件读写实现。
+ * 工作区路径守卫 + 文件读写 / 列目录实现。
  *
  * <p>语义对齐 Python {@code simple_cli_agent.tools.files.FileWorkspace}：
  * <ul>
  *   <li>所有路径必须落在 {@code root} 下（应用层 path jail，非 OS 沙箱）</li>
  *   <li>失败返回以 {@code Error:} 开头的字符串，便于模型下一轮看到原因</li>
  *   <li>写文件为整文件覆盖，不做 diff</li>
+ *   <li>{@link #listDir} 非递归；目录名带尾部 {@code /}</li>
  * </ul>
  */
 public class FileWorkspace {
@@ -102,6 +106,56 @@ public class FileWorkspace {
             return "Wrote " + len + " chars to " + path;
         } catch (IOException e) {
             return "Error: failed to write '" + path + "': " + e.getMessage();
+        }
+    }
+
+    /**
+     * 列出工作区内某目录下的文件/子目录名（非递归）。
+     *
+     * <p>对齐 Python {@code list_dir}：目录名带尾部 {@code /}；目录优先、名称大小写不敏感排序。
+     *
+     * @param path 相对路径；null/空白视为 {@code "."}
+     * @return 每行一个条目，或 Error: 开头说明
+     */
+    public String listDir(String path) {
+        if (path == null || path.isBlank()) {
+            path = ".";
+        }
+        Object resolved = resolve(path);
+        if (resolved instanceof String err) {
+            return err;
+        }
+        Path dir = (Path) resolved;
+        if (!Files.exists(dir)) {
+            return "Error: path not found: " + path;
+        }
+        if (!Files.isDirectory(dir)) {
+            return "Error: not a directory: " + path;
+        }
+        try (Stream<Path> stream = Files.list(dir)) {
+            List<Path> entries = stream
+                    .sorted(Comparator
+                            .comparing((Path p) -> !Files.isDirectory(p))
+                            .thenComparing(p -> p.getFileName().toString().toLowerCase()))
+                    .toList();
+            if (entries.isEmpty()) {
+                return "(empty directory) " + path;
+            }
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < entries.size(); i++) {
+                Path entry = entries.get(i);
+                String name = entry.getFileName().toString();
+                if (Files.isDirectory(entry)) {
+                    name = name + "/";
+                }
+                if (i > 0) {
+                    sb.append('\n');
+                }
+                sb.append(name);
+            }
+            return sb.toString();
+        } catch (IOException e) {
+            return "Error: failed to list '" + path + "': " + e.getMessage();
         }
     }
 }

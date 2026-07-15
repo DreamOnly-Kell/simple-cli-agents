@@ -122,6 +122,33 @@ class FileWorkspace:
         # 返回给模型的「工具结果」，模型会据此组织自然语言回复
         return f"Wrote {len(content)} chars to {path}"
 
+    def list_dir(self, path: str = ".") -> str:
+        """
+        列出工作区内某目录下的文件/子目录名（非递归）。
+
+        目录名带尾部 `/`，便于模型区分。
+        """
+        if path is None or str(path).strip() == "":
+            path = "."
+        resolved = self.resolve(path)
+        if isinstance(resolved, str):
+            return resolved
+        if not resolved.exists():
+            return f"Error: path not found: {path}"
+        if not resolved.is_dir():
+            return f"Error: not a directory: {path}"
+        try:
+            entries = sorted(resolved.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+        except OSError as exc:
+            return f"Error: failed to list '{path}': {exc}"
+        if not entries:
+            return f"(empty directory) {path}"
+        lines: list[str] = []
+        for entry in entries:
+            name = entry.name + ("/" if entry.is_dir() else "")
+            lines.append(name)
+        return "\n".join(lines)
+
 
 def make_file_tools(workspace: FileWorkspace) -> list[StructuredTool]:
     """

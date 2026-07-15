@@ -1,8 +1,11 @@
 package com.example.simplecliagent.config;
 
+import com.example.simplecliagent.tools.CommandGuard;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 应用级配置（前缀 {@code app.*}），写在 {@code application.yml}。
@@ -11,6 +14,7 @@ import java.nio.file.Path;
  *   <li>{@code workspace-root} — 文件工具沙箱根</li>
  *   <li>{@code verbose} — Logback 逻辑轨迹开关</li>
  *   <li>{@code http-log} / {@code http-log-dir} — JSONL wire 日志</li>
+ *   <li>{@code shell-blocked-patterns} / {@code shell-timeout-seconds} — 终端命令策略</li>
  * </ul>
  *
  * <p>Java 版不读取 {@code .env} 文件，只认 Spring 配置体系。
@@ -35,6 +39,15 @@ public class AppProperties {
 
     /** 逻辑日志截断长度（字符）。 */
     private int verboseCharLimit = 2000;
+
+    /**
+     * 终端命令拦截子串列表（大小写不敏感）。
+     * 空列表表示使用 {@link CommandGuard#DEFAULT_BLOCKED_PATTERNS}。
+     */
+    private List<String> shellBlockedPatterns = new ArrayList<>();
+
+    /** {@code run_command} 超时秒数。 */
+    private int shellTimeoutSeconds = 30;
 
     public Path getWorkspaceRoot() {
         return workspaceRoot;
@@ -76,6 +89,34 @@ public class AppProperties {
         this.verboseCharLimit = verboseCharLimit;
     }
 
+    public List<String> getShellBlockedPatterns() {
+        return shellBlockedPatterns;
+    }
+
+    public void setShellBlockedPatterns(List<String> shellBlockedPatterns) {
+        this.shellBlockedPatterns = shellBlockedPatterns != null
+                ? shellBlockedPatterns
+                : new ArrayList<>();
+    }
+
+    public int getShellTimeoutSeconds() {
+        return shellTimeoutSeconds;
+    }
+
+    public void setShellTimeoutSeconds(int shellTimeoutSeconds) {
+        this.shellTimeoutSeconds = shellTimeoutSeconds;
+    }
+
+    /**
+     * 返回生效的拦截 pattern 列表：配置为空时用代码默认高危列表。
+     */
+    public List<String> getShellBlockedPatternsEffective() {
+        if (shellBlockedPatterns == null || shellBlockedPatterns.isEmpty()) {
+            return CommandGuard.DEFAULT_BLOCKED_PATTERNS;
+        }
+        return shellBlockedPatterns;
+    }
+
     /**
      * 返回绝对路径形式的工作区根，避免 cwd 变化导致沙箱漂移。
      *
@@ -93,5 +134,12 @@ public class AppProperties {
      */
     public Path resolvedHttpLogDir() {
         return httpLogDir.toAbsolutePath().normalize();
+    }
+
+    /**
+     * 生效的 shell 超时（至少 1 秒）。
+     */
+    public int resolvedShellTimeoutSeconds() {
+        return Math.max(1, shellTimeoutSeconds);
     }
 }
